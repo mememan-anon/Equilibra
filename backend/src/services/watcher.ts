@@ -102,10 +102,30 @@ export class OnChainWatcher {
     try {
       const allocation = await this.treasuryContract.targetAllocations(token);
       // Allocation is stored as basis points (10000 = 100%)
-      return Number(allocation) / 100;
+      return Number(allocation);
     } catch (error) {
       console.error(`Error getting target allocation:`, error);
       return 0;
+    }
+  }
+
+  async getCurrentAllocation(token: string): Promise<number> {
+    try {
+      const balance = await this.getTreasuryBalance(token);
+      // For demo purposes, return 50% current allocation
+      // In production, this would calculate from strategy balances
+      return 5000; // 50%
+    } catch (error) {
+      console.error(`Error getting current allocation:`, error);
+      return 0;
+    }
+  }
+
+  isConnected(): boolean {
+    try {
+      return this.provider !== null && this.treasuryContract !== null;
+    } catch (error) {
+      return false;
     }
   }
 }

@@ -1,0 +1,24 @@
+[
+  {
+    "id": "1",
+    "timestamp": 1736650000000,
+    "type": "deposit",
+    "token": "0x0000000000000000000000000000000000000000000",
+    "amount": "5000000000000000000000",
+    "strategy": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+    "reason": "Deposit 5 BNB to staking strategy",
+    "status": "executed",
+    "txHash": "0x1234567890abcdef1234567890abcdef1234567890abcdef1234567890abcdef",
+    "executionTime": 1736653600000
+  },
+  {
+    "id": "2",
+    "timestamp": 1736660000000,
+    "type": "harvest",
+    "token": "0xDc64a140Aa3E981100a9becA4E685f962f0cF6C9",
+    "amount": "10000000000000000000000",
+    "strategy": "0xCf7Ed3AccA5a467e9e704C703E8D87F634fB0Fc9",
+    "reason": "Harvest staking rewards from strategy",
+    "status": "pending"
+  }
+]

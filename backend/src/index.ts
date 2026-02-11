@@ -11,10 +11,10 @@ import cron from 'node-cron';
 
 export class AegisBackend {
   private app: Application;
-  private watcher: OnChainWatcher;
-  private oracle: PriceOracle;
-  private decisionEngine: DecisionEngine;
-  private storage: ProposalStorage;
+  private watcher!: OnChainWatcher;
+  private oracle!: PriceOracle;
+  private decisionEngine!: DecisionEngine;
+  private storage!: ProposalStorage;
   private relayer?: Relayer;
 
   constructor() {

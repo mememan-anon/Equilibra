@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-import { ContractConfig, RelayerConfig, DecisionEngineConfig } from './types';
+import { ContractConfig, RelayerConfig, DecisionEngineConfig } from '../types';
 
 dotenv.config();
 
