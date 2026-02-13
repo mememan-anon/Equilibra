@@ -37,17 +37,6 @@ SUPABASE_SERVICE_ROLE_KEY=
 SUPABASE_TABLE=proposals
 ```
 
-### Supabase RLS (Recommended)
-
-```sql
-alter table public.proposals enable row level security;
-
-create policy "public read proposals"
-on public.proposals
-for select
-using (true);
-```
-
 ### 3) Run
 ```
 npm run dev
