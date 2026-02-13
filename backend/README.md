@@ -1,81 +1,71 @@
 # AegisTreasury Backend
 
-Backend agent and API for AegisTreasury.
+Backend agent + API for Aegis Treasury (OpenClaw Edition).
 
-## Setup
+## What This Backend Does
 
-1. Copy example environment file:
-```bash
-cp .env.example .env
+- Watches on-chain balances and target allocations.
+- Computes drift and proposes rebalances.
+- Executes proposals onchain via relayer.
+- Exposes API for UI, minting, and proposal lifecycle.
+
+## Quick Start
+
+### 1) Install
 ```
-
-2. Edit `.env` with your configuration:
-   - `RPC_URL`: Your BSC testnet RPC URL or local Hardhat node
-   - `TREASURY_CONTROLLER_ADDRESS`: Deployed TreasuryController address
-   - `GUARDIAN_ADDRESS`: Deployed Guardian address
-   - `RELAYER_PRIVATE_KEY`: Private key for relayer account (demo key for testing)
-
-3. Install dependencies:
-```bash
 npm install
 ```
 
-## Running
-
-### Development
-```bash
-npm run dev
+### 2) Configure Environment
+Create `backend/.env`:
+```
+RPC_URL=https://data-seed-prebsc-1-s1.binance.org:8545
+CHAIN_ID=97
+TREASURY_CONTROLLER_ADDRESS=0x0a376e8E8E3dcda4Adb898f17cF43bC2dc388456
+GUARDIAN_ADDRESS=0x1073064f7D11fce512337018cD351578aA39eD77
+EXAMPLE_STRATEGY_ADDRESS=0x3B60eA02752D6C7221f4e7f315066f9969aBC903
+MOCK_TOKEN_ADDRESS=0xC35D40596389d4FCA0c59849DA01a51e522Ec708
+MOCK_TOKEN_2_ADDRESS=0x6475971541af2E3FCf4d43Aa7310f9c89a223808
+RELAYER_PRIVATE_KEY=<your-private-key>
+RELAYER_ADDRESS=<your-relayer-address>
+API_PORT=3001
+DATA_PATH=./data
 ```
 
-### Production
-```bash
-npm run build
-npm start
+### 3) Run
+```
+npm run dev
 ```
 
 ## API Endpoints
 
 ### Proposals
-- `GET /api/proposals` - List all proposals
-- `GET /api/proposals/:id` - Get proposal details
-- `POST /api/proposals` - Create new proposal
-- `POST /api/proposals/:id/approve` - Approve a proposal
-- `POST /api/proposals/:id/execute` - Execute a proposal on-chain
-- `DELETE /api/proposals/:id` - Delete a proposal
+- `GET /api/proposals` - list all proposals
+- `GET /api/proposals/:id` - get proposal details
+- `POST /api/proposals` - create proposal (deposit/withdraw/harvest)
+- `POST /api/proposals/:id/approve` - approve a proposal
+- `POST /api/proposals/:id/execute` - execute on-chain via relayer
+- `POST /api/proposals/:id/cancel` - cancel (marks as failed)
+
+### Rebalance + Mint
+- `POST /api/rebalance` - generate rebalance proposals (skips duplicates)
+- `POST /api/mint` - mint mock tokens to treasury
 
 ### Balances & Allocations
-- `GET /api/balances?tokens=0x...` - Get treasury balances
-- `GET /api/allocations?tokens=0x...` - Get allocation analysis
+- `GET /api/balances` - treasury + strategy balances
+- `GET /api/allocations` - target vs current allocation
 
 ### System
-- `GET /api/status` - Get system status
+- `GET /api/status` - RPC + contract config status
 
-## Architecture
+## Notes
 
-### Services
-
-- **OnChainWatcher**: Polls blockchain for balances and events
-- **PriceOracle**: Fetches token prices (mocked for demo, Chainlink ready)
-- **DecisionEngine**: Rule-based rebalancing logic
-- **ProposalStorage**: JSON-based proposal persistence
-- **Relayer**: Signs and submits transactions
-
-### Scheduled Tasks
-
-The backend runs allocation checks every `CHECK_INTERVAL` minutes (default: 5).
-
-## Testing
-
-```bash
-npm test
-```
+- Proposal creation is blocked if the amount exceeds treasury/strategy balance.
+- Rebalance skips creating duplicate pending/approved proposals for the same token/type/strategy.
+- Native BNB is excluded from ERC20 strategy operations.
 
 ## Troubleshooting
 
-### RPC Connection Issues
-- Verify RPC URL is accessible
-- Check that blockchain node is running
-
-### Relayer Issues
-- Ensure `RELAYER_PRIVATE_KEY` is set correctly
-- Verify relayer account has sufficient BNB for gas
+- `Relayer not initialized`: set `RELAYER_PRIVATE_KEY`.
+- `Deposit amount exceeds treasury balance`: mint tokens or reduce amount.
+- `Withdraw amount exceeds strategy balance`: reduce withdraw amount or deposit first.

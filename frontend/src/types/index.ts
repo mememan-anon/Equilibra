@@ -16,6 +16,8 @@ export interface TokenBalance {
   symbol: string;
   balance: string;
   decimals: number;
+  treasuryBalance?: string;
+  strategyBalance?: string;
   price?: number;
   value?: number;
 }

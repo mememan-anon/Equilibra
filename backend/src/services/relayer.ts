@@ -6,10 +6,16 @@ const TREASURY_ABI = [
   'function depositToStrategy(address token, uint256 amount, address strategy) external returns (uint256)',
   'function withdrawFromStrategy(address token, uint256 amount, address strategy) external returns (uint256)',
   'function harvestRewards(address strategy) external returns (uint256)',
+  'function getStrategyBalance(address token, address strategy) view returns (uint256)',
 ];
 
 const GUARDIAN_ABI = [
   'function executeProposal(address target, uint256 value, bytes calldata data) external',
+];
+
+const ERC20_ABI = [
+  'function balanceOf(address account) view returns (uint256)',
+  'function mint(address to, uint256 amount) external',
 ];
 
 export class Relayer {
@@ -17,6 +23,7 @@ export class Relayer {
   private provider: ethers.JsonRpcProvider;
   private treasuryContract: ethers.Contract;
   private guardianContract: ethers.Contract;
+  private allowedTokens: string[];
 
   constructor(
     config: ContractConfig,
@@ -42,6 +49,10 @@ export class Relayer {
       this.wallet
     );
 
+    this.allowedTokens = [config.mockToken, config.mockToken2]
+      .filter(Boolean)
+      .map((t) => String(t).toLowerCase());
+
     console.log(`Relayer initialized: ${this.wallet.address}`);
   }
 
@@ -51,12 +62,38 @@ export class Relayer {
 
     try {
       let tx: ethers.ContractTransactionResponse;
+      const normalizedAmount = this.normalizeAmount(proposal.amount);
+      const amountWei = BigInt(normalizedAmount);
+
+      if ((proposal.type === 'deposit' || proposal.type === 'withdraw') && !this.isAllowedToken(proposal.token)) {
+        throw new Error('Token not allowed for deposit/withdraw.');
+      }
+
+      if (proposal.type === 'withdraw') {
+        const strategyBalance = await this.treasuryContract.getStrategyBalance(proposal.token, strategyAddress) as bigint;
+        if (amountWei > strategyBalance) {
+          throw new Error(
+            `Withdraw amount exceeds strategy balance. Requested=${amountWei.toString()} Available=${strategyBalance.toString()}`
+          );
+        }
+      }
+
+      if (proposal.type === 'deposit') {
+        const token = new ethers.Contract(proposal.token, ERC20_ABI, this.provider);
+        const treasuryAddress = String(this.treasuryContract.target);
+        const treasuryBalance = await token.balanceOf(treasuryAddress) as bigint;
+        if (amountWei > treasuryBalance) {
+          throw new Error(
+            `Deposit amount exceeds treasury balance. Requested=${amountWei.toString()} Available=${treasuryBalance.toString()}`
+          );
+        }
+      }
 
       switch (proposal.type) {
         case 'deposit':
           tx = await this.treasuryContract.depositToStrategy(
             proposal.token,
-            proposal.amount,
+            normalizedAmount,
             strategyAddress
           );
           break;
@@ -64,7 +101,7 @@ export class Relayer {
         case 'withdraw':
           tx = await this.treasuryContract.withdrawFromStrategy(
             proposal.token,
-            proposal.amount,
+            normalizedAmount,
             strategyAddress
           );
           break;
@@ -114,18 +151,19 @@ export class Relayer {
 
   async estimateGas(proposal: Proposal, strategyAddress: string): Promise<bigint> {
     try {
+      const normalizedAmount = this.normalizeAmount(proposal.amount);
       switch (proposal.type) {
         case 'deposit':
           return await this.treasuryContract.depositToStrategy.estimateGas(
             proposal.token,
-            proposal.amount,
+            normalizedAmount,
             strategyAddress
           );
 
         case 'withdraw':
           return await this.treasuryContract.withdrawFromStrategy.estimateGas(
             proposal.token,
-            proposal.amount,
+            normalizedAmount,
             strategyAddress
           );
 
@@ -147,5 +185,76 @@ export class Relayer {
 
   async getBalance(): Promise<bigint> {
     return await this.provider.getBalance(this.wallet.address);
+  }
+
+  async mintToken(token: string, to: string, amount: string): Promise<string> {
+    if (!this.isAllowedToken(token)) {
+      throw new Error('Token not allowed for mint.');
+    }
+
+    const normalizedAmount = this.normalizeAmount(amount);
+    const tokenContract = new ethers.Contract(token, ERC20_ABI, this.wallet);
+
+    try {
+      const tx = await tokenContract.mint(to, normalizedAmount);
+      console.log(`Mint submitted: ${tx.hash}`);
+      const receipt = await tx.wait();
+      console.log(`Mint confirmed in block ${receipt?.blockNumber}`);
+      return tx.hash;
+    } catch (error: any) {
+      console.error(`Error minting token:`, error.message);
+      throw error;
+    }
+  }
+
+  private normalizeAmount(raw: string): string {
+    const value = String(raw).trim();
+    if (!value) throw new Error('Proposal amount is empty');
+
+    // Already canonical uint string.
+    if (/^\d+$/.test(value)) return value;
+
+    // Decimal string: allow only zero fractional part (e.g. "10.0").
+    const decimalMatch = value.match(/^(\d+)\.(\d+)$/);
+    if (decimalMatch) {
+      const [, intPart, fracPart] = decimalMatch;
+      if (/^0+$/.test(fracPart)) return intPart;
+      throw new Error(`Invalid non-integer proposal amount: ${raw}`);
+    }
+
+    // Scientific notation (e.g. "4.95e+21").
+    const sciMatch = value.match(/^(\d+)(?:\.(\d+))?[eE]([+-]?\d+)$/);
+    if (sciMatch) {
+      const [, intPart, fracPartRaw = '', expRaw] = sciMatch;
+      const exponent = Number(expRaw);
+      if (!Number.isInteger(exponent)) {
+        throw new Error(`Invalid scientific proposal amount: ${raw}`);
+      }
+
+      const digits = `${intPart}${fracPartRaw}`;
+      const shift = exponent - fracPartRaw.length;
+
+      if (shift >= 0) return `${digits}${'0'.repeat(shift)}`;
+
+      const cut = digits.length + shift;
+      if (cut <= 0) throw new Error(`Invalid non-integer proposal amount: ${raw}`);
+      const integerPart = digits.slice(0, cut);
+      const fractionalPart = digits.slice(cut);
+      if (!/^0*$/.test(fractionalPart)) {
+        throw new Error(`Invalid non-integer proposal amount: ${raw}`);
+      }
+      return integerPart;
+    }
+
+    throw new Error(`Unsupported proposal amount format: ${raw}`);
+  }
+
+  private isNativeToken(token: string): boolean {
+    return token.toLowerCase() === '0x0000000000000000000000000000000000000000';
+  }
+
+  private isAllowedToken(token?: string): boolean {
+    if (!token) return false;
+    return this.allowedTokens.includes(token.toLowerCase());
   }
 }

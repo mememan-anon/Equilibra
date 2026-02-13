@@ -64,7 +64,6 @@ export class AegisBackend {
       this.oracle,
       this.decisionEngine,
       this.relayer,
-      undefined, // MultiSig
       this.notifications
     ));
 
@@ -88,9 +87,25 @@ export class AegisBackend {
 
   private async runAllocationCheck(): Promise<void> {
     try {
-      // Check main token (BNB)
-      const tokens = ['0x0000000000000000000000000000000000000000'];
-      const balances = await this.watcher.getAllBalances(tokens);
+      // Check configured ERC20 demo token + native BNB
+      const tokens = [Config.contractConfig.mockToken, Config.contractConfig.mockToken2]
+        .filter(Boolean) as string[];
+      if (tokens.length < 2) {
+        console.log('Allocation check skipped: need at least 2 tokens configured for rebalancing.');
+        return;
+      }
+      const treasuryBalances = await this.watcher.getAllBalances(tokens);
+      const balances = await Promise.all(
+        treasuryBalances.map(async (b) => {
+          const strategyBalance = await this.watcher.getStrategyBalance(b.token, Config.contractConfig.exampleStrategy);
+          return {
+            ...b,
+            balance: (BigInt(b.balance) + strategyBalance).toString(),
+            treasuryBalance: b.balance,
+            strategyBalance: strategyBalance.toString(),
+          };
+        }),
+      );
       
       // Get target allocation
       const targetAllocations = new Map<string, number>();

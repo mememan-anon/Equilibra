@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Wallet, LayoutDashboard, FileText } from 'lucide-react';
+import { Wallet, LayoutDashboard, FileText, Shield } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -8,84 +8,74 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const location = useLocation();
-
-  const isActive = (path: string) => {
-    return location.pathname === path;
-  };
+  const isActive = (path: string) => location.pathname === path;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900">
-      {/* Header - Accessibility: Added ARIA attributes */}
+    <div className="min-h-screen text-[var(--text)]">
       <header
-        className="bg-slate-900/50 backdrop-blur-sm border-b border-slate-700 sticky top-0 z-50"
+        className="sticky top-0 z-50 border-b border-[var(--line)] bg-[var(--surface-strong)]"
+        style={{ backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)' }}
         role="banner"
         aria-label="Main navigation"
       >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <div className="flex items-center space-x-2">
-              <div
-                className="w-8 h-8 bg-gradient-to-br from-emerald-400 to-cyan-400 rounded-lg flex items-center justify-center"
-                aria-label="Aegis Treasury Logo"
-              >
-                <Wallet className="w-5 h-5 text-white" aria-hidden="true" />
-              </div>
-              <span className="text-xl font-bold text-white hidden sm:inline">Aegis Treasury</span>
+        <div className="mx-auto flex h-16 w-full max-w-[1400px] items-center justify-between px-4 sm:px-6 lg:px-8">
+          <Link to="/" className="flex items-center gap-3 group">
+            <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-[var(--accent)] to-[var(--accent-2)]">
+              <Wallet className="h-[18px] w-[18px] text-white" aria-hidden="true" />
             </div>
+            <div className="hidden sm:block">
+              <span className="text-[15px] font-bold tracking-tight text-white">Aegis</span>
+              <span className="text-[15px] font-medium tracking-tight text-[var(--muted)] ml-1">Treasury</span>
+            </div>
+          </Link>
 
-            {/* Navigation - Accessibility: Added aria-current */}
-            <nav className="flex space-x-1" aria-label="Main navigation">
-              <Link
-                to="/"
-                className={`flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-lg transition-colors ${
-                  isActive('/')
-                    ? 'bg-emerald-500/20 text-emerald-400'
-                    : 'text-slate-300 hover:bg-slate-700/50 focus:bg-slate-700/50 focus:outline-none'
-                }`}
-                aria-current={isActive('/') ? 'page' : undefined}
-              >
-                <LayoutDashboard className="w-4 h-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Dashboard</span>
-                <span className="sr-only">Go to Dashboard</span>
-              </Link>
-              <Link
-                to="/proposals"
-                className={`flex items-center space-x-2 px-3 sm:px-4 py-2 rounded-lg transition-colors ${
-                  isActive('/proposals')
-                    ? 'bg-emerald-500/20 text-emerald-400'
-                    : 'text-slate-300 hover:bg-slate-700/50 focus:bg-slate-700/50 focus:outline-none'
-                }`}
-                aria-current={isActive('/proposals') ? 'page' : undefined}
-              >
-                <FileText className="w-4 h-4" aria-hidden="true" />
-                <span className="hidden sm:inline">Proposals</span>
-                <span className="sr-only">Go to Proposals</span>
-              </Link>
-            </nav>
+          <nav className="flex items-center gap-1 rounded-xl bg-[var(--surface)] p-1 border border-[var(--line)]" aria-label="Main navigation">
+            <Link
+              to="/"
+              className={`flex items-center gap-2 rounded-lg px-3.5 py-[7px] text-[13px] font-medium transition-all ${
+                isActive('/')
+                  ? 'tab-active'
+                  : 'text-[var(--muted)] hover:text-[var(--text-secondary)] hover:bg-white/[0.03]'
+              }`}
+              aria-current={isActive('/') ? 'page' : undefined}
+            >
+              <LayoutDashboard className="h-[15px] w-[15px]" aria-hidden="true" />
+              <span className="hidden sm:inline">Dashboard</span>
+            </Link>
+            <Link
+              to="/proposals"
+              className={`flex items-center gap-2 rounded-lg px-3.5 py-[7px] text-[13px] font-medium transition-all ${
+                isActive('/proposals')
+                  ? 'tab-active'
+                  : 'text-[var(--muted)] hover:text-[var(--text-secondary)] hover:bg-white/[0.03]'
+              }`}
+              aria-current={isActive('/proposals') ? 'page' : undefined}
+            >
+              <FileText className="h-[15px] w-[15px]" aria-hidden="true" />
+              <span className="hidden sm:inline">Proposals</span>
+            </Link>
+          </nav>
+
+          <div className="flex items-center gap-3">
+            <div className="hidden md:flex items-center gap-2 text-[12px] text-[var(--muted)]">
+              <div className="status-dot status-dot--live" />
+              <span>Testnet</span>
+            </div>
           </div>
         </div>
       </header>
 
-      {/* Main Content - Accessibility: Added role and aria-label */}
-      <main
-        className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8"
-        role="main"
-        aria-label="Main content"
-      >
+      <main className="mx-auto w-full max-w-[1400px] px-4 py-6 sm:px-6 lg:px-8" role="main" aria-label="Main content">
         {children}
       </main>
 
-      {/* Footer */}
-      <footer
-        className="border-t border-slate-700 mt-12 py-6"
-        role="contentinfo"
-      >
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row items-center justify-between text-sm text-slate-400 gap-2 sm:gap-0">
-            <p>© 2026 Aegis Treasury. All rights reserved.</p>
-            <p>Phase 1 Core MVP - Demo</p>
+      <footer className="mt-12 border-t border-[var(--line)] py-6" role="contentinfo">
+        <div className="mx-auto flex w-full max-w-[1400px] items-center justify-between px-4 text-[12px] text-[var(--muted)] sm:px-6 lg:px-8">
+          <div className="flex items-center gap-2">
+            <Shield className="h-3.5 w-3.5 text-[var(--accent)]" />
+            <span>Security-first Treasury Automation</span>
           </div>
+          <span>2026 Aegis Treasury</span>
         </div>
       </footer>
     </div>

@@ -3,15 +3,16 @@
   "version": "1.0.0",
   "description": "AegisTreasury smart contracts",
   "scripts": {
-    "compile": "HOME=/tmp/hardhat-home npx hardhat compile",
-    "test": "HOME=/tmp/hardhat-home npx hardhat test",
-    "test:coverage": "HOME=/tmp/hardhat-home npx hardhat coverage",
-    "node": "HOME=/tmp/hardhat-home npx hardhat node",
-    "node:fork": "FORK_RPC_URL=https://bsc-dataseed.binance.org/ HOME=/tmp/hardhat-home npx hardhat node",
-    "deploy": "HOME=/tmp/hardhat-home npx hardhat run scripts/deploy.js",
-    "deploy:local": "HOME=/tmp/hardhat-home npx hardhat run scripts/deploy-local-fork.js --network localhost",
-    "deploy:testnet": "HOME=/tmp/hardhat-home npx hardhat run scripts/deploy-bnb-testnet.js --network bnbTestnet",
-    "verify:guardian": "hardhat verify --network bnbTestnet",
+    "compile": "cross-env HOME=/tmp/hardhat-home npx hardhat compile",
+    "test": "cross-env HOME=/tmp/hardhat-home npx hardhat test",
+    "test:coverage": "cross-env HOME=/tmp/hardhat-home npx hardhat coverage",
+    "node": "cross-env HOME=/tmp/hardhat-home npx hardhat node",
+    "node:fork": "cross-env FORK_RPC_URL=https://bsc-dataseed.binance.org/ HOME=/tmp/hardhat-home npx hardhat node",
+    "deploy": "cross-env HOME=/tmp/hardhat-home npx hardhat run scripts/deploy.js",
+    "deploy:local": "cross-env HOME=/tmp/hardhat-home npx hardhat run scripts/deploy-local-fork.js --network localhost",
+    "deploy:testnet": "cross-env HOME=/tmp/hardhat-home npx hardhat run scripts/deploy-bnb-testnet.js --network bnbTestnet",
+    "verify": "cross-env HOME=/tmp/hardhat-home npx hardhat run scripts/verify-contracts.js --network bnbTestnet",
+    "setup:demo": "cross-env HOME=/tmp/hardhat-home npx hardhat run scripts/setup-demo.js --network bnbTestnet",
     "clean": "npx hardhat clean"
   },
   "dependencies": {
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@nomicfoundation/hardhat-toolbox": "^4.0.0",
+    "cross-env": "^7.0.3",
     "hardhat": "^2.28.5"
   }
 }

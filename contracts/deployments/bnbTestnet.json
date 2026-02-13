@@ -1,0 +1,27 @@
+{
+  "network": "bnbTestnet",
+  "chainId": "97",
+  "deployer": "0xde70F44bE59359d07153c3a3bA32bA3C0cDA2854",
+  "contracts": {
+    "Guardian": "0x1073064f7D11fce512337018cD351578aA39eD77",
+    "TreasuryController": "0x0a376e8E8E3dcda4Adb898f17cF43bC2dc388456",
+    "ExampleStrategy": "0x3B60eA02752D6C7221F4e7f315066f9969aBC903",
+    "MockERC20": "0xC35D40596389d4FCA0c59849DA01a51e522Ec708",
+    "MockERC20_2": "0x6475971541af2E3FCf4d43Aa7310f9c89a223808"
+  },
+  "config": {
+    "relayer": "0xde70F44bE59359d07153c3a3bA32bA3C0cDA2854",
+    "targetAllocations": {
+      "0xC35D40596389d4FCA0c59849DA01a51e522Ec708": "5000",
+      "0x6475971541af2E3FCf4d43Aa7310f9c89a223808": "5000"
+    }
+  },
+  "explorerUrls": {
+    "Guardian": "https://testnet.bscscan.com/address/0x1073064f7D11fce512337018cD351578aA39eD77",
+    "TreasuryController": "https://testnet.bscscan.com/address/0x0a376e8E8E3dcda4Adb898f17cF43bC2dc388456",
+    "ExampleStrategy": "https://testnet.bscscan.com/address/0x3B60eA02752D6C7221F4e7f315066f9969aBC903",
+    "MockERC20": "https://testnet.bscscan.com/address/0xC35D40596389d4FCA0c59849DA01a51e522Ec708"
+  },
+  "gasSpent": "0.000418155892 tBNB",
+  "deployedAt": "2026-02-13T07:50:11.157Z"
+}

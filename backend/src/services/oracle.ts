@@ -1,39 +1,42 @@
 import { PriceData } from '../types';
 
+// CoinGecko ID mapping for token addresses / symbols
+const COINGECKO_IDS: Record<string, string> = {
+  BNB: 'binancecoin',
+  USDT: 'tether',
+  USDC: 'usd-coin',
+  ETH: 'ethereum',
+  TOKEN: 'binancecoin', // fallback
+};
+
+// Fallback prices in case API is down
+const FALLBACK_PRICES: Record<string, number> = {
+  BNB: 600,
+  USDT: 1.0,
+  USDC: 1.0,
+  ETH: 3200,
+  TOKEN: 1.0,
+};
+
 export class PriceOracle {
   private cache: Map<string, PriceData> = new Map();
-  private mockPrices: Map<string, number> = new Map();
-
-  constructor() {
-    // Initialize mock prices
-    this.mockPrices.set('BNB', 350);
-    this.mockPrices.set('USDT', 1.00);
-    this.mockPrices.set('USDC', 1.00);
-    this.mockPrices.set('ETH', 2200);
-  }
+  private cacheTTL = 60_000; // 1 minute
 
   /**
-   * Get price for a token (mock implementation)
-   * In production, this would call Chainlink Price Feed API
+   * Get price for a token — fetches live from CoinGecko, falls back to cached/default
    */
   async getPrice(token: string): Promise<number> {
-    const cached = this.cache.get(token);
+    const symbol = this.getTokenSymbol(token);
+    const cached = this.cache.get(symbol);
     const now = Date.now();
 
-    // Return cached price if less than 1 minute old
-    if (cached && now - cached.timestamp < 60000) {
+    if (cached && now - cached.timestamp < this.cacheTTL) {
       return cached.price;
     }
 
-    // Otherwise get fresh price (mock)
-    const price = await this.fetchPrice(token);
-    
-    this.cache.set(token, {
-      token,
-      price,
-      timestamp: now,
-    });
+    const price = await this.fetchLivePrice(symbol);
 
+    this.cache.set(symbol, { token, price, timestamp: now });
     return price;
   }
 
@@ -42,41 +45,80 @@ export class PriceOracle {
    */
   async getPrices(tokens: string[]): Promise<Map<string, number>> {
     const prices = new Map<string, number>();
-
+    // Batch all symbols to a single CoinGecko call
+    const symbolMap = new Map<string, string[]>(); // coingeckoId -> [token addresses]
     for (const token of tokens) {
-      const price = await this.getPrice(token);
-      prices.set(token, price);
+      const symbol = this.getTokenSymbol(token);
+      const cgId = COINGECKO_IDS[symbol] || COINGECKO_IDS.TOKEN;
+      if (!symbolMap.has(cgId)) symbolMap.set(cgId, []);
+      symbolMap.get(cgId)!.push(token);
+    }
+
+    const ids = [...symbolMap.keys()].join(',');
+    try {
+      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${ids}&vs_currencies=usd`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`CoinGecko ${response.status}`);
+      const data = await response.json() as Record<string, { usd: number }>;
+
+      const now = Date.now();
+      for (const [cgId, tokenAddrs] of symbolMap) {
+        const price = data[cgId]?.usd;
+        if (price) {
+          for (const addr of tokenAddrs) {
+            prices.set(addr, price);
+            const sym = this.getTokenSymbol(addr);
+            this.cache.set(sym, { token: addr, price, timestamp: now });
+          }
+        }
+      }
+    } catch {
+      // Fallback: use cache or defaults
+    }
+
+    // Fill any missing with cache/fallback
+    for (const token of tokens) {
+      if (!prices.has(token)) {
+        const sym = this.getTokenSymbol(token);
+        const cached = this.cache.get(sym);
+        prices.set(token, cached?.price ?? FALLBACK_PRICES[sym] ?? 1.0);
+      }
     }
 
     return prices;
   }
 
-  private async fetchPrice(token: string): Promise<number> {
-    // Mock: Return fixed prices with small random variation
-    const symbol = this.getTokenSymbol(token);
-    const basePrice = this.mockPrices.get(symbol) || 1.0;
-    const variation = (Math.random() - 0.5) * 0.02; // +/- 1% variation
-    
-    const price = basePrice * (1 + variation);
-    
-    console.log(`Price oracle: ${symbol} = $${price.toFixed(2)}`);
-    return price;
+  private async fetchLivePrice(symbol: string): Promise<number> {
+    const cgId = COINGECKO_IDS[symbol] || COINGECKO_IDS.TOKEN;
+    try {
+      const url = `https://api.coingecko.com/api/v3/simple/price?ids=${cgId}&vs_currencies=usd`;
+      const response = await fetch(url);
+      if (!response.ok) throw new Error(`CoinGecko ${response.status}`);
+      const data = await response.json() as Record<string, { usd: number }>;
+      const price = data[cgId]?.usd;
+      if (price) {
+        console.log(`Price oracle (live): ${symbol} = $${price.toFixed(2)}`);
+        return price;
+      }
+    } catch (err: any) {
+      console.warn(`Price oracle: CoinGecko fetch failed for ${symbol}: ${err.message}`);
+    }
+
+    // Fallback
+    const fallback = FALLBACK_PRICES[symbol] ?? 1.0;
+    console.log(`Price oracle (fallback): ${symbol} = $${fallback.toFixed(2)}`);
+    return fallback;
   }
 
   private getTokenSymbol(token: string): string {
-    if (token.toLowerCase().includes('bnb') || token === '0x0000000000000000000000000000000000000000') {
-      return 'BNB';
-    }
+    if (token === '0x0000000000000000000000000000000000000000') return 'BNB';
+    if (token.toLowerCase().includes('bnb')) return 'BNB';
     if (token.toLowerCase().includes('usdt')) return 'USDT';
     if (token.toLowerCase().includes('usdc')) return 'USDC';
     if (token.toLowerCase().includes('eth') && !token.toLowerCase().includes('bnb')) return 'ETH';
-    
     return 'TOKEN';
   }
 
-  /**
-   * Clear the price cache
-   */
   clearCache(): void {
     this.cache.clear();
   }

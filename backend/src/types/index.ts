@@ -3,6 +3,9 @@
 export interface ContractConfig {
   treasuryController: string;
   guardian: string;
+  exampleStrategy: string;
+  mockToken: string;
+  mockToken2?: string;
   rpcUrl: string;
   chainId: number;
 }
@@ -30,6 +33,8 @@ export interface TokenBalance {
   symbol: string;
   balance: string;
   decimals: number;
+  treasuryBalance?: string;
+  strategyBalance?: string;
   price?: number;
   value?: number;
 }

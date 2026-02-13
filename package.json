@@ -1,0 +1,25 @@
+{
+  "name": "aegis-treasury",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Automated DeFi treasury management protocol",
+  "scripts": {
+    "dev": "concurrently -n api,web -c blue,green \"npm run dev:api\" \"npm run dev:web\"",
+    "dev:api": "cd backend && npm run dev",
+    "dev:web": "cd frontend && npm run dev",
+    "build": "cd frontend && npm run build",
+    "test": "concurrently \"cd contracts && npx hardhat test\" \"cd frontend && npm test\"",
+    "test:contracts": "cd contracts && npx hardhat test",
+    "test:frontend": "cd frontend && npm test",
+    "deploy:testnet": "cd contracts && npx hardhat run scripts/deploy-bnb-testnet.js --network bnbTestnet",
+    "install:all": "cd contracts && npm install && cd ../backend && npm install && cd ../frontend && npm install"
+  },
+  "devDependencies": {
+    "@vercel/node": "^5.6.3",
+    "concurrently": "^8.2.2",
+    "ethers": "^6.16.0"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}

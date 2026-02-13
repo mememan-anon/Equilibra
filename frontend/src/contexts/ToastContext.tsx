@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useCallback, useContext, useState } from 'react';
 
 export interface Toast {
   id: string;
@@ -18,20 +18,21 @@ const ToastContext = createContext<ToastContextType | undefined>(undefined);
 export const ToastProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [toasts, setToasts] = useState<Toast[]>([]);
 
-  const addToast = (message: string, type: Toast['type'], duration: number = 5000) => {
-    const id = Date.now().toString();
-    const toast: Toast = { id, message, type, duration };
-    setToasts((prev) => [...prev, toast]);
-
-    // Auto-remove after duration
-    setTimeout(() => {
-      removeToast(id);
-    }, duration);
-  };
-
-  const removeToast = (id: string) => {
+  const removeToast = useCallback((id: string) => {
     setToasts((prev) => prev.filter((toast) => toast.id !== id));
-  };
+  }, []);
+
+  const addToast = useCallback(
+    (message: string, type: Toast['type'], duration: number = 4000) => {
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
+      setToasts((prev) => {
+        const limited = prev.length >= 3 ? prev.slice(-2) : prev;
+        return [...limited, { id, message, type, duration }];
+      });
+      setTimeout(() => removeToast(id), duration);
+    },
+    [removeToast],
+  );
 
   return (
     <ToastContext.Provider value={{ toasts, addToast, removeToast }}>

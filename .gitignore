@@ -67,8 +67,7 @@ typechain-types/
 # Foundry
 lib/
 
-# Deployment artifacts
-deployments/
+# Deployment artifacts (keep bnbTestnet.json for reference)
 deployment/
 
 # Documentation build
