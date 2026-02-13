@@ -30,6 +30,11 @@ RELAYER_PRIVATE_KEY=<your-private-key>
 RELAYER_ADDRESS=<your-relayer-address>
 API_PORT=3001
 DATA_PATH=./data
+
+# Supabase (optional - for Vercel persistence)
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_TABLE=proposals
 ```
 
 ### 3) Run

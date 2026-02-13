@@ -89,12 +89,37 @@ RELAYER_PRIVATE_KEY=<your-private-key>
 RELAYER_ADDRESS=<your-relayer-address>
 API_PORT=3001
 DATA_PATH=./data
+
+# Supabase (for Vercel persistence)
+SUPABASE_URL=
+SUPABASE_SERVICE_ROLE_KEY=
+SUPABASE_TABLE=proposals
 ```
 
 `frontend/.env`
 ```
 VITE_MOCK_TOKEN_2_ADDRESS=0x6475971541af2E3FCf4d43Aa7310f9c89a223808
 VITE_EXPLORER_TX_BASE=https://testnet.bscscan.com/tx/
+```
+
+### Supabase Table Format
+
+Create a `proposals` table with this schema:
+
+```sql
+create table if not exists public.proposals (
+  id text primary key,
+  timestamp bigint not null,
+  type text not null,
+  token text not null,
+  amount text not null,
+  strategy text not null,
+  reason text,
+  status text not null,
+  tx_hash text,
+  execution_time bigint,
+  created_at timestamptz not null default now()
+);
 ```
 
 ### 3) Run

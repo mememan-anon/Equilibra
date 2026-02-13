@@ -1,11 +1,12 @@
-/**
+﻿/**
  * Shared service initialization for both Vercel serverless and local Express.
  * Uses a singleton pattern so services are initialized once per cold start.
  */
 
 import { ethers } from 'ethers';
+import { createClient, SupabaseClient } from '@supabase/supabase-js';
 
-// ── Types ──
+// â”€â”€ Types â”€â”€
 
 interface ContractConfig {
   treasuryController: string;
@@ -50,7 +51,7 @@ interface TokenBalance {
   value?: number;
 }
 
-// ── Config ──
+// â”€â”€ Config â”€â”€
 
 class Config {
   static get contractConfig(): ContractConfig {
@@ -81,7 +82,7 @@ class Config {
   }
 }
 
-// ── OnChainWatcher ──
+// â”€â”€ OnChainWatcher â”€â”€
 
 const TREASURY_ABI = [
   'function getTotalBalance(address token) view returns (uint256)',
@@ -153,7 +154,7 @@ class OnChainWatcher {
   }
 }
 
-// ── PriceOracle (live CoinGecko) ──
+// â”€â”€ PriceOracle (live CoinGecko) â”€â”€
 
 const CG_IDS: Record<string, string> = { BNB: 'binancecoin', USDT: 'tether', USDC: 'usd-coin', ETH: 'ethereum', TOKEN: 'binancecoin' };
 const FALLBACK: Record<string, number> = { BNB: 600, USDT: 1.0, USDC: 1.0, ETH: 3200, TOKEN: 1.0 };
@@ -192,7 +193,7 @@ class PriceOracle {
   }
 }
 
-// ── DecisionEngine ──
+// â”€â”€ DecisionEngine â”€â”€
 
 class DecisionEngine {
   constructor(
@@ -227,71 +228,94 @@ class DecisionEngine {
   }
 }
 
-// ── In-Memory ProposalStorage (works on Vercel) ──
+// ── ProposalStorage (Supabase if configured, fallback to in-memory) ──
 
 class ProposalStorage {
   private proposals: Proposal[] = [];
+  private supabase?: SupabaseClient;
+  private useSupabase = false;
+  private table = 'proposals';
 
   async initialize(): Promise<void> {
-    // Pre-seed with demo proposals for initial load
-    if (this.proposals.length === 0) {
-      this.proposals = [
-        {
-          id: '1',
-          timestamp: Math.floor(Date.now() / 1000) - 3600,
-          type: 'deposit',
-          token: 'USDT',
-          amount: '100000',
-          strategy: '0x3B60eA02752D6C7221F4e7f315066f9969aBC903',
-          reason: 'Deposit to Venus strategy for yield farming',
-          status: 'executed',
-          txHash: '0xabcdef1234567890abcdef1234567890abcdef1234567890abcdef12',
-        },
-        {
-          id: '2',
-          timestamp: Math.floor(Date.now() / 1000) - 1800,
-          type: 'harvest',
-          token: 'BNB',
-          amount: '15.5',
-          strategy: '0x3B60eA02752D6C7221F4e7f315066f9969aBC903',
-          reason: 'Harvest rewards from PancakeSwap staking',
-          status: 'pending',
-        },
-        {
-          id: '3',
-          timestamp: Math.floor(Date.now() / 1000) - 900,
-          type: 'withdraw',
-          token: 'USDT',
-          amount: '50000',
-          strategy: '0x3B60eA02752D6C7221F4e7f315066f9969aBC903',
-          reason: 'Rebalance portfolio - reduce USDT allocation',
-          status: 'approved',
-          executionTime: Math.floor(Date.now() / 1000) + 3600,
-        },
-      ];
+    const url = process.env.SUPABASE_URL;
+    const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+    this.table = process.env.SUPABASE_TABLE || 'proposals';
+    this.useSupabase = !!(url && key);
+    if (this.useSupabase) {
+      this.supabase = createClient(url!, key!, { auth: { persistSession: false } });
+      return;
     }
   }
 
   async saveProposal(proposal: Proposal): Promise<void> {
+    if (this.useSupabase && this.supabase) {
+      const { error } = await this.supabase
+        .from(this.table)
+        .upsert(this.toSupabase(proposal), { onConflict: 'id' });
+      if (error) throw error;
+      return;
+    }
     this.proposals.push(proposal);
   }
 
   async getProposals(): Promise<Proposal[]> {
+    if (this.useSupabase && this.supabase) {
+      const { data, error } = await this.supabase.from(this.table).select('*').order('timestamp', { ascending: false });
+      if (error) throw error;
+      return (data || []).map(this.fromSupabase);
+    }
     return [...this.proposals].sort((a, b) => b.timestamp - a.timestamp);
   }
 
   async getProposal(id: string): Promise<Proposal | null> {
+    if (this.useSupabase && this.supabase) {
+      const { data, error } = await this.supabase.from(this.table).select('*').eq('id', id).maybeSingle();
+      if (error) throw error;
+      return data ? this.fromSupabase(data) : null;
+    }
     return this.proposals.find((p) => p.id === id) || null;
   }
 
   async updateProposal(id: string, updates: Partial<Proposal>): Promise<void> {
+    if (this.useSupabase && this.supabase) {
+      const payload = this.toSupabase({ ...updates, id } as Proposal);
+      const { error } = await this.supabase.from(this.table).update(payload).eq('id', id);
+      if (error) throw error;
+      return;
+    }
     const idx = this.proposals.findIndex((p) => p.id === id);
     if (idx !== -1) this.proposals[idx] = { ...this.proposals[idx], ...updates };
   }
 
-}
+  private toSupabase(proposal: Proposal): Record<string, any> {
+    return {
+      id: proposal.id,
+      timestamp: proposal.timestamp,
+      type: proposal.type,
+      token: proposal.token,
+      amount: proposal.amount,
+      strategy: proposal.strategy,
+      reason: proposal.reason,
+      status: proposal.status,
+      tx_hash: proposal.txHash ?? null,
+      execution_time: proposal.executionTime ?? null,
+    };
+  }
 
-// ── Relayer ──
+  private fromSupabase = (row: any): Proposal => ({
+    id: row.id,
+    timestamp: Number(row.timestamp),
+    type: row.type,
+    token: row.token,
+    amount: row.amount,
+    strategy: row.strategy,
+    reason: row.reason,
+    status: row.status,
+    txHash: row.tx_hash ?? undefined,
+    executionTime: row.execution_time ?? undefined,
+  });
+}
+// â”€â”€ Relayer â”€â”€
 
 const TREASURY_EXEC_ABI = [
   'function depositToStrategy(address token, uint256 amount, address strategy) external returns (uint256)',
@@ -423,7 +447,7 @@ class Relayer {
   }
 }
 
-// ── NotificationService (stub for serverless) ──
+// â”€â”€ NotificationService (stub for serverless) â”€â”€
 
 class NotificationService {
   async notifyProposalCreated(id: string, type: string, amount: string, reason: string) {
@@ -434,7 +458,7 @@ class NotificationService {
   }
 }
 
-// ── Singleton ──
+// â”€â”€ Singleton â”€â”€
 
 interface Services {
   storage: ProposalStorage;
