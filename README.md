@@ -122,6 +122,19 @@ create table if not exists public.proposals (
 );
 ```
 
+### Supabase RLS (Recommended)
+
+Enable RLS and allow read-only access for the public UI. Writes should be done via server (service role key).
+
+```sql
+alter table public.proposals enable row level security;
+
+create policy \"public read proposals\"
+on public.proposals
+for select
+using (true);
+```
+
 ### 3) Run
 
 ```
