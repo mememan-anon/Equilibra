@@ -43,6 +43,7 @@ export class Config {
   }
 
   static get dataPath(): string {
-    return process.env.DATA_PATH || './data';
+    if (process.env.DATA_PATH) return process.env.DATA_PATH;
+    return path.resolve(__dirname, '..', '..', 'data');
   }
 }
